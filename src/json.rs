@@ -2,19 +2,22 @@ use std::{collections::HashMap, fmt::Display};
 
 pub type ParseResult<'s, T> = (&'s str, T);
 
+type JsonArray = Vec<Json>;
+type JsonObject = HashMap<String, Json>;
+
 #[derive(Debug, PartialEq)]
 pub enum Json {
     Null,
     Bool(bool),
     String(String),
     Number(f64),
-    Array(Vec<Json>),
-    Object(HashMap<String, Json>),
+    Array(JsonArray),
+    Object(JsonObject),
 }
 
-struct Parser;
+pub struct JsonParser;
 
-impl Parser {
+impl JsonParser {
     fn parse_char(src: &str, c: char) -> Option<ParseResult<char>> {
         (c == src.chars().nth(0)?).then(|| Some((src.get(1..)?, c)))?
     }
@@ -33,7 +36,7 @@ impl Parser {
         let mut rest = src;
 
         for (i, c) in str.chars().enumerate() {
-            let (str, _) = Parser::parse_char(rest, c)?;
+            let (str, _) = JsonParser::parse_char(rest, c)?;
             chars = src.get(..i + 1)?;
             rest = str;
         }
@@ -63,36 +66,34 @@ impl Parser {
     }
 
     fn parse_string_literal(src: &str) -> Option<ParseResult<String>> {
-        let (rest, _) = Parser::parse_char(src, '\"')?;
-        let (rest, string) = Parser::parse_chars_while(rest, |c| c != '\"')?; // Can't escape characters and can break line
-        let (rest, _) = Parser::parse_char(rest, '\"')?;
+        let (rest, _) = JsonParser::parse_char(src, '\"')?;
+        let (rest, string) = JsonParser::parse_chars_while(rest, |c| c != '\"')?; // Can't escape characters and can break line
+        let (rest, _) = JsonParser::parse_char(rest, '\"')?;
 
         Some((rest, String::from(string)))
     }
-}
 
-impl Json {
     fn parse_null(src: &str) -> Option<ParseResult<Json>> {
-        let (rest, _) = Parser::parse_chars(src, "null")?;
+        let (rest, _) = JsonParser::parse_chars(src, "null")?;
         Some((rest, Json::Null))
     }
 
     fn parse_true(src: &str) -> Option<ParseResult<Json>> {
-        let (rest, _) = Parser::parse_chars(src, "true")?;
+        let (rest, _) = JsonParser::parse_chars(src, "true")?;
         Some((rest, Json::Bool(true)))
     }
 
     fn parse_false(src: &str) -> Option<ParseResult<Json>> {
-        let (rest, _) = Parser::parse_chars(src, "false")?;
+        let (rest, _) = JsonParser::parse_chars(src, "false")?;
         Some((rest, Json::Bool(false)))
     }
 
     fn parse_boolean(src: &str) -> Option<ParseResult<Json>> {
-        Json::parse_true(src).or(Json::parse_false(src))
+        JsonParser::parse_true(src).or(JsonParser::parse_false(src))
     }
 
     fn parse_string(src: &str) -> Option<ParseResult<Json>> {
-        let (rest, string) = Parser::parse_string_literal(src)?;
+        let (rest, string) = JsonParser::parse_string_literal(src)?;
         Some((rest, Json::String(string)))
     }
 
@@ -100,7 +101,7 @@ impl Json {
         match src.chars().nth(0)? {
             '+' => None,
             '-' => {
-                if let Some((rest, Json::Number(n))) = Json::parse_number(src.get(1..)?) {
+                if let Some((rest, Json::Number(n))) = JsonParser::parse_number(src.get(1..)?) {
                     Some((rest, Json::Number(-n)))
                 } else {
                     None
@@ -111,13 +112,13 @@ impl Json {
                 Some(n) if n.is_ascii_digit() => None,
                 _ => {
                     let (rest, chars) =
-                        Parser::parse_chars_while(src, |c| c.is_ascii_digit() || c == '.')?;
+                        JsonParser::parse_chars_while(src, |c| c.is_ascii_digit() || c == '.')?;
                     Some((rest, Json::Number(chars.parse().ok()?)))
                 }
             },
             _ => {
                 let (rest, chars) =
-                    Parser::parse_chars_while(src, |c| c.is_ascii_digit() || c == '.')?;
+                    JsonParser::parse_chars_while(src, |c| c.is_ascii_digit() || c == '.')?;
                 Some((rest, Json::Number(chars.parse().ok()?)))
             }
         }
@@ -126,23 +127,23 @@ impl Json {
     fn parse_array(src: &str) -> Option<ParseResult<Json>> {
         let mut vec = vec![];
 
-        let (mut rest, _) = Parser::parse_char(src, '[')?;
-        (rest, _) = Parser::parse_chars_while(rest, |c| c.is_whitespace())?;
+        let (mut rest, _) = JsonParser::parse_char(src, '[')?;
+        (rest, _) = JsonParser::parse_chars_while(rest, |c| c.is_whitespace())?;
         if rest.chars().nth(0)? == ']' {
             let rest = rest.get(1..)?;
             return Some((rest, Json::Array(vec)));
         }
 
         loop {
-            let (after_item, item) = Json::parse(rest)?;
+            let (after_item, item) = JsonParser::partial_parse(rest)?;
             rest = after_item;
             vec.push(item);
-            (rest, _) = Parser::parse_chars_while(rest, |c| c.is_whitespace())?;
-            let (after_c, c) = Parser::parse_char_if(rest, |c| c == ',' || c == ']')?;
+            (rest, _) = JsonParser::parse_chars_while(rest, |c| c.is_whitespace())?;
+            let (after_c, c) = JsonParser::parse_char_if(rest, |c| c == ',' || c == ']')?;
             rest = after_c;
             match c {
                 ',' => {
-                    (rest, _) = Parser::parse_chars_while(rest, |c| c.is_whitespace())?;
+                    (rest, _) = JsonParser::parse_chars_while(rest, |c| c.is_whitespace())?;
                     continue;
                 }
                 ']' => break,
@@ -156,32 +157,32 @@ impl Json {
     fn parse_object(src: &str) -> Option<ParseResult<Json>> {
         let mut object = HashMap::<String, Json>::new();
 
-        let (mut rest, _) = Parser::parse_char(src, '{')?;
-        (rest, _) = Parser::parse_chars_while(rest, |c| c.is_whitespace())?;
+        let (mut rest, _) = JsonParser::parse_char(src, '{')?;
+        (rest, _) = JsonParser::parse_chars_while(rest, |c| c.is_whitespace())?;
         if rest.chars().nth(0)? == '}' {
             let rest = rest.get(1..)?;
             return Some((rest, Json::Object(object)));
         }
 
         loop {
-            let (after_key, key) = Parser::parse_string_literal(rest)?;
+            let (after_key, key) = JsonParser::parse_string_literal(rest)?;
             rest = after_key;
 
-            (rest, _) = Parser::parse_chars_while(rest, |c| c.is_whitespace())?;
-            (rest, _) = Parser::parse_char(rest, ':')?;
-            (rest, _) = Parser::parse_chars_while(rest, |c| c.is_whitespace())?;
+            (rest, _) = JsonParser::parse_chars_while(rest, |c| c.is_whitespace())?;
+            (rest, _) = JsonParser::parse_char(rest, ':')?;
+            (rest, _) = JsonParser::parse_chars_while(rest, |c| c.is_whitespace())?;
 
-            let (after_value, value) = Json::parse(rest)?;
+            let (after_value, value) = JsonParser::partial_parse(rest)?;
             rest = after_value;
 
             object.insert(key, value);
 
-            (rest, _) = Parser::parse_chars_while(rest, |c| c.is_whitespace())?;
-            let (after_line, c) = Parser::parse_char_if(rest, |c| c == ',' || c == '}')?;
+            (rest, _) = JsonParser::parse_chars_while(rest, |c| c.is_whitespace())?;
+            let (after_line, c) = JsonParser::parse_char_if(rest, |c| c == ',' || c == '}')?;
             rest = after_line;
             match c {
                 ',' => {
-                    (rest, _) = Parser::parse_chars_while(rest, |c| c.is_whitespace())?;
+                    (rest, _) = JsonParser::parse_chars_while(rest, |c| c.is_whitespace())?;
                     continue;
                 }
                 '}' => break,
@@ -192,24 +193,69 @@ impl Json {
         Some((rest, Json::Object(object)))
     }
 
-    fn parse(src: &str) -> Option<ParseResult<Json>> {
-        Json::parse_null(src)
-            .or_else(|| Json::parse_boolean(src))
-            .or_else(|| Json::parse_string(src))
-            .or_else(|| Json::parse_number(src))
-            .or_else(|| Json::parse_array(src))
-            .or_else(|| Json::parse_object(src))
+    fn partial_parse(src: &str) -> Option<ParseResult<Json>> {
+        JsonParser::parse_null(src)
+            .or_else(|| JsonParser::parse_boolean(src))
+            .or_else(|| JsonParser::parse_string(src))
+            .or_else(|| JsonParser::parse_number(src))
+            .or_else(|| JsonParser::parse_array(src))
+            .or_else(|| JsonParser::parse_object(src))
     }
 
-    pub fn parse_json(src: &str) -> Option<Json> {
-        Json::parse(src.trim()).and_then(|(rest, json)| (rest.trim().is_empty()).then(|| json))
+    pub fn parse(src: &str) -> Option<Json> {
+        JsonParser::partial_parse(src.trim())
+            .and_then(|(rest, json)| (rest.trim().is_empty()).then(|| json))
+    }
+}
+
+impl Json {
+    pub fn null(&self) -> Option<()> {
+        match self {
+            Json::Null => Some(()),
+            _ => None,
+        }
     }
 
-    pub fn to_custom_string(&self) -> String {
+    pub fn bool(&self) -> Option<&bool> {
+        match self {
+            Json::Bool(boolean) => Some(boolean),
+            _ => None,
+        }
+    }
+
+    pub fn string(&self) -> Option<&String> {
+        match self {
+            Json::String(string) => Some(string),
+            _ => None,
+        }
+    }
+
+    pub fn number(&self) -> Option<&f64> {
+        match self {
+            Json::Number(number) => Some(number),
+            _ => None,
+        }
+    }
+
+    pub fn array(&self) -> Option<&JsonArray> {
+        match self {
+            Json::Array(array) => Some(array),
+            _ => None,
+        }
+    }
+
+    pub fn object(&self) -> Option<&JsonObject> {
+        match self {
+            Json::Object(object) => Some(object),
+            _ => None,
+        }
+    }
+
+    fn to_custom_string(&self) -> String {
         self.to_custom_string_with_tabs(0, "  ")
     }
 
-    pub fn to_custom_string_with_tabs(&self, tabs: usize, tab_str: &str) -> String {
+    fn to_custom_string_with_tabs(&self, tabs: usize, tab_str: &str) -> String {
         format!(
             "{}",
             match self {
