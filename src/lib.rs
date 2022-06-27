@@ -7,20 +7,18 @@ mod test {
     #[test]
     fn test_playground() {
         let playground = || {
-            let json_string =
-                "{     \"foo\": \"bar\",    \"baz\": 2.0,    \"arr\": [     true,false,    [ null  ]  ] ,   \"obj\"  :  {  }}";
+            let json_string = "\"a\\na\"";
 
-            let json = JsonParser::parse(&json_string)?;
+            println!("debug string: {:?}", json_string);
+            println!("string: {}", json_string);
+            let json = JsonParser::parse(&json_string);
             println!("json: {:?}", json);
-
-            let object = json.object()?;
-            println!("object: {:?}", object);
-            let array = object.get("arr")?.array()?;
-            println!("array: {:?}", array);
-            let inner_array = array.get(2)?.array()?;
-            println!("inner_array: {:?}", inner_array);
-            let null = inner_array.get(0)?.null()?;
-            println!("null: {:?}", null);
+            match json {
+                Some(value) => {
+                    println!("value: {:?}", value.string());
+                }
+                None => todo!(),
+            }
 
             Some(())
         };
@@ -46,6 +44,18 @@ mod test {
             Some(Json::String("str".to_owned()))
         );
         assert_eq!(JsonParser::parse("\"\""), Some(Json::String("".to_owned())));
+        assert_eq!(
+            JsonParser::parse("\"\\t\""),
+            Some(Json::String("\t".to_owned()))
+        );
+        assert_eq!(
+            JsonParser::parse("\"\\n\\r\\t\\\\\\/\""),
+            Some(Json::String("\n\r\t\\/".to_owned()))
+        );
+        assert_eq!(
+            JsonParser::parse("\"\\\"a\\\"\""),
+            Some(Json::String("\"a\"".to_owned()))
+        );
     }
 
     #[test]
