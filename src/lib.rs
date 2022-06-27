@@ -1,22 +1,19 @@
 pub mod json;
 
-use json::Json;
-
-fn main() -> std::io::Result<()> {
-    let json_string =
-        "{     \"foo\": \"bar\",    \"baz\": 2.0,    \"arr\": [    null,     true,false,    [  ]  ] ,   \"obj\"  :  {  }}";
-
-    match Json::parse_json(&json_string) {
-        Some(json) => println!("{}", json),
-        None => println!("Error"),
-    }
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod test {
-    use super::*;
+    use crate::json::Json;
+
+    #[test]
+    fn test_playground() {
+        let json_string =
+        "{     \"foo\": \"bar\",    \"baz\": 2.0,    \"arr\": [    null,     true,false,    [  ]  ] ,   \"obj\"  :  {  }}";
+
+        match Json::parse_json(&json_string) {
+            Some(json) => println!("{}", json),
+            None => println!("Invalid JSON"),
+        }
+    }
 
     #[test]
     fn test_null() {
