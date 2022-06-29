@@ -259,49 +259,21 @@ impl JsonParser {
     }
 }
 
+pub trait JsonValue {
+    fn null(&self) -> Option<()>;
+
+    fn bool(&self) -> Option<&bool>;
+
+    fn string(&self) -> Option<&String>;
+
+    fn number(&self) -> Option<&f64>;
+
+    fn array(&self) -> Option<&JsonArray>;
+
+    fn object(&self) -> Option<&JsonObject>;
+}
+
 impl Json {
-    pub fn null(&self) -> Option<()> {
-        match self {
-            Json::Null => Some(()),
-            _ => None,
-        }
-    }
-
-    pub fn bool(&self) -> Option<&bool> {
-        match self {
-            Json::Bool(boolean) => Some(boolean),
-            _ => None,
-        }
-    }
-
-    pub fn string(&self) -> Option<&String> {
-        match self {
-            Json::String(string) => Some(string),
-            _ => None,
-        }
-    }
-
-    pub fn number(&self) -> Option<&f64> {
-        match self {
-            Json::Number(number) => Some(number),
-            _ => None,
-        }
-    }
-
-    pub fn array(&self) -> Option<&JsonArray> {
-        match self {
-            Json::Array(array) => Some(array),
-            _ => None,
-        }
-    }
-
-    pub fn object(&self) -> Option<&JsonObject> {
-        match self {
-            Json::Object(object) => Some(object),
-            _ => None,
-        }
-    }
-
     fn to_custom_string(&self, tab: &str) -> String {
         self.to_custom_string_with_tabs(0, tab)
     }
@@ -354,6 +326,138 @@ impl Json {
                 }
             }
         )
+    }
+}
+
+impl JsonValue for Json {
+    fn null(&self) -> Option<()> {
+        match self {
+            Json::Null => Some(()),
+            _ => None,
+        }
+    }
+
+    fn bool(&self) -> Option<&bool> {
+        match self {
+            Json::Bool(boolean) => Some(boolean),
+            _ => None,
+        }
+    }
+
+    fn string(&self) -> Option<&String> {
+        match self {
+            Json::String(string) => Some(string),
+            _ => None,
+        }
+    }
+
+    fn number(&self) -> Option<&f64> {
+        match self {
+            Json::Number(number) => Some(number),
+            _ => None,
+        }
+    }
+
+    fn array(&self) -> Option<&JsonArray> {
+        match self {
+            Json::Array(array) => Some(array),
+            _ => None,
+        }
+    }
+
+    fn object(&self) -> Option<&JsonObject> {
+        match self {
+            Json::Object(object) => Some(object),
+            _ => None,
+        }
+    }
+}
+
+impl JsonValue for Option<Json> {
+    fn null(&self) -> Option<()> {
+        match self {
+            Some(Json::Null) => Some(()),
+            _ => None,
+        }
+    }
+
+    fn bool(&self) -> Option<&bool> {
+        match self {
+            Some(Json::Bool(boolean)) => Some(boolean),
+            _ => None,
+        }
+    }
+
+    fn string(&self) -> Option<&String> {
+        match self {
+            Some(Json::String(string)) => Some(string),
+            _ => None,
+        }
+    }
+
+    fn number(&self) -> Option<&f64> {
+        match self {
+            Some(Json::Number(number)) => Some(number),
+            _ => None,
+        }
+    }
+
+    fn array(&self) -> Option<&JsonArray> {
+        match self {
+            Some(Json::Array(array)) => Some(array),
+            _ => None,
+        }
+    }
+
+    fn object(&self) -> Option<&JsonObject> {
+        match self {
+            Some(Json::Object(object)) => Some(object),
+            _ => None,
+        }
+    }
+}
+
+impl JsonValue for Option<&Json> {
+    fn null(&self) -> Option<()> {
+        match self {
+            Some(Json::Null) => Some(()),
+            _ => None,
+        }
+    }
+
+    fn bool(&self) -> Option<&bool> {
+        match self {
+            Some(Json::Bool(boolean)) => Some(boolean),
+            _ => None,
+        }
+    }
+
+    fn string(&self) -> Option<&String> {
+        match self {
+            Some(Json::String(string)) => Some(string),
+            _ => None,
+        }
+    }
+
+    fn number(&self) -> Option<&f64> {
+        match self {
+            Some(Json::Number(number)) => Some(number),
+            _ => None,
+        }
+    }
+
+    fn array(&self) -> Option<&JsonArray> {
+        match self {
+            Some(Json::Array(array)) => Some(array),
+            _ => None,
+        }
+    }
+
+    fn object(&self) -> Option<&JsonObject> {
+        match self {
+            Some(Json::Object(object)) => Some(object),
+            _ => None,
+        }
     }
 }
 
